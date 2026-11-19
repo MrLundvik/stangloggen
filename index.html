@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E7EAEE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1113" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Träningslogg för skivstångspass med automatisk viktökning">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Stångloggen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: en kolumn i telefonbredd – sticky rubrik, staplade övningskort, fast flikrad längst ner */
+:root{
+  --bg:#E7EAEE; --surface:#FFFFFF; --surface-2:#F1F3F6; --fg:#13161A; --muted:#59616B; --line:#D2D7DD;
+  --accent:#F2C200; --accent-ink:#13161A; --accent-text:#7A5E00;
+  --ok:#1E8448; --ok-ink:#FFFFFF; --ok-soft:#DCF1E4; --bad:#C4323A; --bad-ink:#FFFFFF; --bad-soft:#F7DFE0;
+  --focus:#1F5CC4; --scrim:rgba(10,12,14,.45); --shadow:0 1px 2px rgba(10,12,14,.05),0 6px 18px rgba(10,12,14,.05);
+  --bar:#8A9199; --plate-edge:rgba(0,0,0,.28);
+  --p-red:#D3302F; --p-blue:#1F5CC4; --p-yellow:#F2C200; --p-green:#21904A; --p-white:#F4F5F6; --p-chrome:#B3BAC2;
+  --f-display:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --tabs-h:66px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1113; --surface:#191C20; --surface-2:#23272C; --fg:#ECEEF1; --muted:#9BA3AD; --line:#2E333A;
+  --accent:#F2C200; --accent-ink:#13161A; --accent-text:#F2C200;
+  --ok:#38B56A; --ok-ink:#0B1A11; --ok-soft:#173222; --bad:#EE5A60; --bad-ink:#1E0B0C; --bad-soft:#3B1D20;
+  --focus:#8DB6FF; --scrim:rgba(0,0,0,.62); --shadow:none; --bar:#7C838C; --plate-edge:rgba(0,0,0,.55); --p-white:#E6E8EA;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1113; --surface:#191C20; --surface-2:#23272C; --fg:#ECEEF1; --muted:#9BA3AD; --line:#2E333A;
+  --accent:#F2C200; --accent-ink:#13161A; --accent-text:#F2C200;
+  --ok:#38B56A; --ok-ink:#0B1A11; --ok-soft:#173222; --bad:#EE5A60; --bad-ink:#1E0B0C; --bad-soft:#3B1D20;
+  --focus:#8DB6FF; --scrim:rgba(0,0,0,.62); --shadow:none; --bar:#7C838C; --plate-edge:rgba(0,0,0,.55); --p-white:#E6E8EA;
+  color-scheme:dark}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 16px/1.45 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-bottom:calc(var(--tabs-h) + 28px + env(safe-area-inset-bottom,0px))}
+body.timing{padding-bottom:calc(var(--tabs-h) + 110px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+[hidden]{display:none!important}
+#app{max-width:560px;margin:0 auto}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:700;line-height:1.05;text-wrap:balance}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.num{font-variant-numeric:tabular-nums}
+.center{text-align:center}
+.stack{display:grid;gap:14px}
+.stack-sm{display:grid;gap:10px}
+
+/* Rubrikrad */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 10px}
+.brand{font:700 16px/1 var(--f-display);letter-spacing:.14em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.brand::before{content:"";width:18px;height:6px;border-radius:2px;background:var(--accent);box-shadow:inset 0 0 0 1px var(--plate-edge)}
+.aux{font-size:14px;color:var(--muted)}
+.live-dot{font:600 12px/1 var(--f-body);letter-spacing:.02em;text-transform:none;background:var(--accent);color:var(--accent-ink);padding:4px 7px;border-radius:999px}
+.eyebrow,.label{font:600 13px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.label{margin-bottom:8px}
+
+/* Kort och knappar */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);display:grid;gap:12px;min-width:0}
+.card h2{font-size:23px;text-transform:uppercase;letter-spacing:.02em}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:600 16px/1.15 var(--f-body);text-align:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font:700 21px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;min-height:56px}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.block{width:100%}
+.btn.sm{min-height:38px;padding:8px 12px;font-size:14px}
+.btn:active,.set:active,.step:active,.wchip:active{transform:translateY(1px)}
+.link{background:none;border:0;padding:4px 0;color:var(--accent-text);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.seg button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;font-weight:600;font-size:15px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 12px;font-weight:600;font-size:14px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip i{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--plate-edge)}
+.tag{display:inline-flex;align-items:center;font:600 12px/1 var(--f-body);padding:4px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.tag.up{background:var(--ok-soft);color:var(--ok)}
+.tag.down{background:var(--bad-soft);color:var(--bad)}
+.rk{display:inline-flex;font:600 12px/1 var(--f-body);padding:4px 8px;border-radius:999px}
+.rk.ok{background:var(--ok-soft);color:var(--ok)}
+.rk.miss{background:var(--bad-soft);color:var(--bad)}
+.note{font-size:14px;padding:10px 12px;border-radius:10px;background:var(--surface-2);border-left:3px solid var(--accent)}
+
+/* Nästa pass */
+.hero{display:grid;gap:10px;padding-block:4px 2px}
+.hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.workout{font-size:64px;text-transform:uppercase;letter-spacing:-.005em}
+.workout span{display:inline-block;background:var(--accent);color:var(--accent-ink);padding:0 .14em;border-radius:6px;margin-left:.06em}
+.title-lg{font-size:40px;text-transform:uppercase}
+.plan{list-style:none;margin:6px 0 4px;padding:0;border-top:2px solid var(--fg)}
+.plan li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.pname{font:700 21px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.psub{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:5px;font-size:14px;color:var(--muted)}
+.pweight{font:700 42px/1 var(--f-display)}
+.pweight small{font-size:18px;margin-left:3px;color:var(--muted);font-weight:600}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1px dashed var(--line);background:var(--surface)}
+.banner b{display:block;font-weight:600}
+.banner small{display:block;color:var(--muted);font-size:13px}
+.results{list-style:none;margin:0;padding:0}
+.results li{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.results li:last-child{border-bottom:0}
+.rn{font-weight:600;min-width:0}
+.rw{font-weight:600}
+.rs{color:var(--muted);font-size:14px}
+
+/* Pass pågår */
+.hint{font-size:14px;color:var(--muted)}
+.gen{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
+.gen b{display:block;font-weight:600}
+.gen small{display:block;color:var(--muted);font-size:13px}
+.box{flex:none;width:26px;height:26px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center}
+.gen.done .box{background:var(--ok);border-color:var(--ok)}
+.gen.done .box::after{content:"";width:10px;height:6px;border:solid var(--ok-ink);border-width:0 0 3px 3px;transform:translateY(-2px) rotate(-45deg)}
+.gen.done b{color:var(--muted)}
+.lift{gap:14px}
+.lift-head{display:flex;align-items:center;gap:10px}
+.lift-head h2{font-size:27px;flex:1;min-width:0}
+.scheme{font:600 19px/1 var(--f-display);color:var(--muted)}
+.wrow{display:grid;grid-template-columns:58px 1fr 58px;gap:10px;align-items:center}
+.step{height:58px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font:500 30px/1 var(--f-body)}
+.wbox{display:flex;align-items:baseline;justify-content:center;gap:6px;min-width:0}
+.wbox input{width:4.2ch;min-width:0;text-align:right;border:0;border-bottom:2px solid transparent;background:transparent;font:700 52px/1.05 var(--f-display);font-variant-numeric:tabular-nums;padding:0}
+.wbox input:focus{border-bottom-color:var(--accent);outline:none}
+.wbox span{font:600 22px/1 var(--f-display);color:var(--muted)}
+.plates{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);min-width:0}
+.plates svg{flex:none}
+.plates span{min-width:0}
+.pl-bar{fill:var(--bar)}
+.pl-plate{stroke:var(--plate-edge);stroke-width:1}
+.wchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.wchip{position:relative;display:grid;gap:3px;justify-items:start;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:left;min-width:0}
+.wchip b{font:700 22px/1 var(--f-display)}
+.wchip span{font-size:13px;color:var(--muted)}
+.wchip small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.wchip.done{background:var(--surface-2);border-color:transparent}
+.wchip.done b{color:var(--muted)}
+.wchip.done::after{content:"";position:absolute;top:9px;right:9px;width:9px;height:5px;border:solid var(--ok);border-width:0 0 2.5px 2.5px;transform:rotate(-45deg)}
+.sets{display:flex;flex-wrap:wrap;gap:12px}
+.sets-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;min-height:36px}
+.sets-head .label{margin-bottom:0}
+.reset{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 14px/1 var(--f-body)}
+.reset svg{width:16px;height:16px}
+.set{width:62px;height:62px;border-radius:50%;border:2px dashed var(--muted);background:transparent;color:var(--muted);font:700 26px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.set{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:transform .12s}
+.set.pressing{transform:scale(.84);transition:transform .55s ease-out}
+.set.done{border:2px solid var(--ok);background:var(--ok);color:var(--ok-ink)}
+.set.miss{border:2px solid var(--bad);background:var(--bad);color:var(--bad-ink)}
+.field{display:grid;gap:6px}
+.cap{font-size:14px;color:var(--muted);font-weight:500}
+.field input,.field textarea{width:100%;min-width:0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
+.field textarea{resize:vertical}
+.unit{display:flex;align-items:center;gap:8px}
+.unit input{max-width:140px}
+.unit em{font-style:normal;color:var(--muted)}
+
+/* Historik */
+.month{font:600 13px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 0 0}
+.hlist{display:grid;gap:8px}
+.hrow{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.hdate{display:grid;justify-items:center;line-height:1}
+.hdate b{font:700 30px/1 var(--f-display)}
+.hdate span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+.hbody{display:grid;gap:4px;min-width:0}
+.htitle{font-weight:600}
+.hlifts{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:14px;color:var(--muted)}
+.r{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.r b{color:var(--fg);font-weight:600}
+.r::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.r.miss::before{background:var(--bad)}
+.chev{font-size:24px;color:var(--muted)}
+.empty{padding:28px 8px;text-align:center;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.dtable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.dtable td{padding:10px 8px 10px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+.dtable td:last-child{padding-right:0;text-align:right}
+.note-text{white-space:pre-wrap;padding:10px 12px;border-radius:10px;background:var(--surface-2)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stat b{display:block;font:700 26px/1 var(--f-display);white-space:nowrap}
+.stat b small{font-size:14px;color:var(--muted);margin-left:2px}
+.stat span{font-size:12px;color:var(--muted)}
+.chart{width:100%;height:auto;display:block}
+.c-grid{stroke:var(--line);stroke-width:1}
+.c-axis{fill:var(--muted);font:500 11px var(--f-body)}
+.c-area{fill:var(--accent);opacity:.26}
+.c-line{fill:none;stroke:var(--fg);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}
+.c-pt{fill:var(--fg)}
+.c-pt.miss{fill:var(--surface);stroke:var(--bad);stroke-width:2.25}
+.c-end{fill:var(--accent);stroke:var(--fg);stroke-width:2.25}
+.c-endlabel{fill:var(--fg);font:700 15px var(--f-display)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:50%;background:var(--fg)}
+.legend i.m{background:var(--surface);box-shadow:inset 0 0 0 2px var(--bad)}
+
+/* Inställningar */
+.srows{display:grid}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.sl{min-width:0}
+.sl b{display:block;font-weight:600}
+.sl small{display:block;color:var(--muted);font-size:13px}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+.stepper button{width:44px;height:44px;border:0;background:var(--surface-2);font-size:22px;font-weight:600}
+.stepper output{min-width:76px;text-align:center;font:700 20px/1 var(--f-display);font-variant-numeric:tabular-nums;padding:0 6px}
+.switch{flex:none;width:24px;height:24px;accent-color:var(--ok)}
+.status{font-size:14px}
+.warn{color:var(--bad);font-weight:600}
+.rules summary{cursor:pointer;font:700 23px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.rules ul{margin:12px 0 0;padding-left:20px;display:grid;gap:6px;font-size:15px}
+.plain{margin:0;padding-left:20px;display:grid;gap:6px}
+
+/* Flikrad, vilotimer, ark, toast */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.tabs-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tab{position:relative;display:grid;justify-items:center;gap:4px;padding:7px 4px;min-height:52px;border:0;border-radius:12px;background:transparent;color:var(--muted);font:600 12px/1 var(--f-body)}
+.tab svg{width:24px;height:24px}
+.tab[aria-current="page"]{color:var(--fg);background:var(--surface-2)}
+.tab.live::after{content:"";position:absolute;top:6px;left:calc(50% + 9px);width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--surface)}
+.timer{position:fixed;left:0;right:0;bottom:calc(var(--tabs-h) + env(safe-area-inset-bottom,0px));z-index:19;
+  padding:0 max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.timer-in{position:relative;overflow:hidden;max-width:560px;margin:0 auto;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:8px;padding:10px 10px 12px 16px;border-radius:14px;background:var(--fg);color:var(--bg);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.timer-fill{position:absolute;left:0;bottom:0;height:4px;width:0;background:var(--accent)}
+.t-label{font-size:13px;opacity:.8}
+.t-time{font:700 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.timer .btn{background:transparent;color:inherit;border-color:currentColor}
+.timer.done .timer-in{background:var(--accent);color:var(--accent-ink)}
+.timer.done .timer-fill{background:var(--accent-ink)}
+.sheet-wrap{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet-back{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:relative;width:100%;max-width:560px;max-height:88vh;overflow:auto;background:var(--surface);border-radius:18px 18px 0 0;display:grid;gap:14px;
+  padding:22px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+.sheet h2{font-size:30px;text-transform:uppercase}
+.sheet-body{display:grid;gap:12px}
+.sheet-actions{display:grid;gap:8px;margin-top:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabs-h) + 20px + env(safe-area-inset-bottom,0px));z-index:60;width:max-content;max-width:min(92vw,480px);background:var(--fg);color:var(--bg);padding:12px 16px;border-radius:12px;font-weight:500;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+body.timing .toast{bottom:calc(var(--tabs-h) + 104px + env(safe-area-inset-bottom,0px))}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+</div>
+<div id="timer" class="timer" hidden>
+  <div class="timer-in" role="timer">
+    <i id="tFill" class="timer-fill"></i>
+    <div><div id="tLabel" class="t-label">Vila</div><div id="tTime" class="t-time">3:00</div></div>
+    <button class="btn sm" data-act="timer-add">+30 s</button>
+    <button class="btn sm" data-act="timer-stop">Klar</button>
+  </div>
+</div>
+<nav class="tabs" aria-label="Huvudmeny"><div class="tabs-in">
+  <button class="tab" data-act="tab" data-tab="pass"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h20M5 9v6M8 6v12M16 6v12M19 9v6"/></svg><span>Pass</span></button>
+  <button class="tab" data-act="tab" data-tab="historik"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16M8 15l3.5-4 3 2.5L20 7"/></svg><span>Historik</span></button>
+  <button class="tab" data-act="tab" data-tab="installningar"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Inställningar</span></button>
+</div></nav>
+<div id="sheet" class="sheet-wrap" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<input type="file" id="restoreFile" accept=".txt,.json,text/plain,application/json" hidden>
+<script>
+(() => {
+'use strict';
+const KEY = 'stangloggen.v1';
+const IN_FRAME = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+const LIFTS = {
+  squat:    { name: 'Knäböj',        short: 'Knäböj', sets: 3, reps: 5 },
+  bench:    { name: 'Bänkpress',     short: 'Bänk',   sets: 3, reps: 5 },
+  press:    { name: 'Stående press', short: 'Press',  sets: 3, reps: 5 },
+  deadlift: { name: 'Marklyft',      short: 'Mark',   sets: 1, reps: 5 },
+  clean:    { name: 'Frivändning',   short: 'Frivändning', sets: 5, reps: 3 },
+};
+const ORDER = ['squat', 'bench', 'press', 'deadlift', 'clean'];
+const PROGRAMS = {
+  1: { A: ['squat', 'press', 'deadlift'], B: ['squat', 'bench', 'deadlift'] },
+  2: { A: ['squat', 'press', 'deadlift'], B: ['squat', 'bench', 'clean'] },
+};
+const DEFAULTS = {
+  phase: 1, bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25],
+  start: { squat: 30, bench: 35, press: 22.5, deadlift: 50, clean: 30 },
+  inc:   { squat: 2.5, bench: 2.5, press: 2.5, deadlift: 5, clean: 2.5 },
+  restOk: 180, restFail: 300, deloadAfter: 3, deloadPct: 10, wakeLock: true, sound: true,
+};
+const START_NOTES = {
+  squat: 'Börja lätt och lär dig djupet först',
+  bench: 'Runt 80 % av vad du klarar en gång',
+  press: 'Brukar landa runt 60 % av bänkpressen',
+  deadlift: 'Under max, så tekniken hinner sätta sig',
+  clean: 'Lätt vikt – det är en snabb rörelse',
+};
+const ALL_PLATES = [25, 20, 15, 10, 5, 2.5, 2, 1.5, 1.25, 1, 0.5, 0.25];
+const PLATE_LOOK = { 25: ['--p-red', 100, 13], 20: ['--p-blue', 100, 12], 15: ['--p-yellow', 88, 11], 10: ['--p-green', 76, 10], 5: ['--p-white', 56, 8], 2.5: ['--p-red', 46, 6], 2: ['--p-blue', 42, 6], 1.5: ['--p-yellow', 40, 5], 1.25: ['--p-chrome', 38, 5], 1: ['--p-green', 34, 5], 0.5: ['--p-white', 28, 4], 0.25: ['--p-chrome', 24, 3] };
+const DAYS = ['sön', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör'];
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+const MONTHS_LONG = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
+
+const $ = s => document.querySelector(s);
+const clone = o => JSON.parse(JSON.stringify(o));
+const fix = n => Math.round(n * 1000) / 1000;
+const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const kg = n => fix(n).toLocaleString('sv-SE', { maximumFractionDigits: 2 });
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + kg(Math.abs(n));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const parseNum = v => { const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.]/g, '')); return isFinite(n) ? n : null; };
+const fmtSec = s => `${Math.floor(s / 60)}:${pad(s % 60)}`;
+const fmtRest = s => s % 60 ? `${Math.floor(s / 60)}:${pad(s % 60)} min` : `${s / 60} min`;
+function fmtDay(iso) { const d = new Date(iso); const y = d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''; return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${y}`; }
+function fmtTime(iso) { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function ymd(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function toLocalInput(iso) { const d = new Date(iso); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fromLocalInput(v) { const d = new Date(v); return isNaN(d) ? null : d.toISOString(); }
+function daysAgo(iso) { const a = new Date(iso); a.setHours(0, 0, 0, 0); const b = new Date(); b.setHours(0, 0, 0, 0); return Math.round((b - a) / 864e5); }
+const agoText = n => n <= 0 ? 'idag' : n === 1 ? 'igår' : `${n} dagar sedan`;
+
+/* ---------- Lagring ---------- */
+let storageOk = true;
+function mergeSettings(x) {
+  const st = Object.assign(clone(DEFAULTS), x || {});
+  st.start = Object.assign(clone(DEFAULTS.start), (x && x.start) || {});
+  st.inc = Object.assign(clone(DEFAULTS.inc), (x && x.inc) || {});
+  if (!Array.isArray(st.plates) || !st.plates.length) st.plates = clone(DEFAULTS.plates);
+  if (!PROGRAMS[st.phase]) st.phase = 1;
+  return st;
+}
+function freshState() { return { settings: clone(DEFAULTS), sessions: [], active: null, lastBackup: null, setupDone: false }; }
+function load() {
+  let s = null;
+  try { const raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch (e) { storageOk = false; }
+  const base = freshState();
+  if (!s || typeof s !== 'object') return base;
+  const out = Object.assign(base, s);
+  out.settings = mergeSettings(s.settings);
+  out.sessions = Array.isArray(s.sessions) ? s.sessions.filter(validSession) : [];
+  return out;
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); storageOk = true; } catch (e) { storageOk = false; } }
+function requestPersist() { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {} }
+function validSession(s) {
+  if (!s || typeof s.date !== 'string' || isNaN(Date.parse(s.date)) || !Array.isArray(s.lifts)) return false;
+  s.lifts = s.lifts.filter(l => l && LIFTS[l.lift] && typeof l.weight === 'number' && Array.isArray(l.sets));
+  s.lifts.forEach(l => { if (!l.target) l.target = { sets: LIFTS[l.lift].sets, reps: LIFTS[l.lift].reps }; l.sets = l.sets.map(r => +r || 0); });
+  if (!s.id) s.id = uid();
+  if (s.workout !== 'A' && s.workout !== 'B') s.workout = 'A';
+  s.saved = s.saved || 0;
+  return s.lifts.length > 0;
+}
+
+let S = load();
+const ui = { tab: 'pass', histView: 'list', chartLift: 'squat', editing: null, timer: null, choose: null, installEvt: null };
+if (S.active && S.active.timer && S.active.timer.end > Date.now() - 120000) ui.timer = S.active.timer;
+
+/* ---------- Programlogik ---------- */
+function stepW() { const p = S.settings.plates; return p.length ? fix(2 * Math.min(...p)) : 2.5; }
+function roundW(x, mode) {
+  const s = stepW(), b = S.settings.bar, k = (x - b) / s;
+  return fix(Math.max(b, b + s * (mode === 'down' ? Math.floor(k + 1e-9) : Math.round(k))));
+}
+function sortedSessions() { return S.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)); }
+function isSuccess(l) { return l.sets.length >= l.target.sets && l.sets.every(r => (r || 0) >= l.target.reps); }
+function liftLog(lift) {
+  const out = [];
+  for (const s of sortedSessions()) for (const l of s.lifts) if (l.lift === lift) out.push({ date: s.date, weight: l.weight, ok: isSuccess(l) });
+  return out;
+}
+function nextFor(lift) {
+  const st = S.settings, log = liftLog(lift);
+  if (!log.length) return { weight: st.start[lift], reason: 'start' };
+  const last = log[log.length - 1];
+  if (last.ok) return { weight: fix(last.weight + st.inc[lift]), reason: 'up', from: last.weight };
+  let fails = 0;
+  for (let i = log.length - 1; i >= 0 && !log[i].ok && log[i].weight === last.weight; i--) fails++;
+  if (fails >= st.deloadAfter) {
+    let w = roundW(last.weight * (1 - st.deloadPct / 100), 'nearest');
+    if (w >= last.weight) w = Math.max(st.bar, fix(last.weight - stepW()));
+    return { weight: w, reason: 'deload', from: last.weight, fails };
+  }
+  return { weight: last.weight, reason: 'same', fails };
+}
+function nextWorkout() { const ss = sortedSessions(); const last = ss[ss.length - 1]; return last && last.workout === 'A' ? 'B' : 'A'; }
+function plan(letter) { return PROGRAMS[S.settings.phase][letter].map(lift => Object.assign({ lift, sets: LIFTS[lift].sets, reps: LIFTS[lift].reps }, nextFor(lift))); }
+function liftsInProgram() { const p = PROGRAMS[S.settings.phase]; const set = new Set([...p.A, ...p.B]); return ORDER.filter(l => set.has(l)); }
+function newDraft(letter, mode) {
+  return { id: uid(), mode, workout: letter, date: new Date().toISOString(), bodyweight: null, note: '', general: false, timer: null,
+    lifts: plan(letter).map(p => ({ lift: p.lift, weight: p.weight, target: { sets: p.sets, reps: p.reps }, sets: Array(p.sets).fill(null), warm: [] })) };
+}
+function draftFromSession(s) { const d = clone(s); d.mode = 'edit'; d.lifts.forEach(l => { l.warm = []; }); d.note = d.note || ''; return d; }
+function cur() { return ui.tab === 'historik' && ui.editing ? ui.editing : S.active; }
+function persist(d) { if (d === S.active) save(); }
+
+function warmups(lift, work) {
+  const bar = S.settings.bar;
+  if (work <= bar) return [];
+  let base = bar;
+  if (lift === 'deadlift' || lift === 'clean') base = Math.max(bar, roundW(work * 0.4, 'down'));
+  const cap = r => lift === 'clean' ? Math.min(r, 3) : r;
+  const out = [{ w: base, r: cap(5) }, { w: base, r: cap(5) }];
+  const diff = work - base;
+  const n = diff < 5 ? 0 : diff < 15 ? 1 : diff < 40 ? 2 : 3;
+  const reps = { 1: [3], 2: [5, 3], 3: [5, 3, 2] }[n] || [];
+  let prev = base;
+  for (let i = 1; i <= n; i++) {
+    const w = roundW(base + diff * i / (n + 1), 'nearest');
+    if (w > prev && w < work) { out.push({ w, r: cap(reps[i - 1]) }); prev = w; }
+  }
+  return out;
+}
+function platesPerSide(total) {
+  const bar = S.settings.bar;
+  if (total < bar - 1e-9) return { plates: [], rem: 0, under: true };
+  let rem = fix((total - bar) / 2); const plates = [];
+  for (const p of S.settings.plates.slice().sort((a, b) => b - a)) while (rem >= p - 1e-9) { plates.push(p); rem = fix(rem - p); }
+  return { plates, rem, under: false };
+}
+function plateText(pp) {
+  if (pp.under) return 'Lättare än tom stång';
+  if (!pp.plates.length && !pp.rem) return 'Tom stång';
+  return 'Per sida: ' + (pp.plates.length ? pp.plates.map(kg).join(' + ') : '–') + (pp.rem ? ` <span class="warn">(${kg(pp.rem)} kg går inte att lägga på)</span>` : '');
+}
+function platesShort(w) { const pp = platesPerSide(w); return pp.plates.length ? pp.plates.map(kg).join('+') + ' /sida' : 'tom stång'; }
+function plateSvg(pp) {
+  const H = 46, mid = H / 2; let x = 24; const rects = [];
+  for (const p of pp.plates) {
+    const [c, hp, w] = PLATE_LOOK[p] || ['--p-chrome', 30, 4]; const h = H * hp / 100;
+    rects.push(`<rect class="pl-plate" x="${x}" y="${fix(mid - h / 2)}" width="${w}" height="${fix(h)}" rx="1.5" style="fill:var(${c})"/>`);
+    x += w + 1.5;
+  }
+  const W = Math.max(x + 16, 70);
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><rect class="pl-bar" x="0" y="${mid - 3}" width="${W}" height="6" rx="2"/><rect class="pl-bar" x="15" y="${mid - 8}" width="6" height="16" rx="1.5"/>${rects.join('')}</svg>`;
+}
+function unbacked() { const t = S.lastBackup ? Date.parse(S.lastBackup) : 0; return S.sessions.filter(s => (s.saved || 0) > t).length; }
+
+/* ---------- Vy: Pass ---------- */
+function renderPass() {
+  if (S.active) return renderEditor(S.active);
+  if (!S.setupDone && !S.sessions.length) return renderSetup();
+  return renderPlan();
+}
+function stepperRow(label, note, val, kind, key) {
+  return `<div class="srow"><div class="sl"><b>${esc(label)}</b>${note ? `<small>${esc(note)}</small>` : ''}</div><div class="stepper"><button data-act="adj" data-kind="${kind}" data-key="${key || ''}" data-dir="-1" aria-label="Minska: ${esc(label)}">−</button><output class="num">${val}</output><button data-act="adj" data-kind="${kind}" data-key="${key || ''}" data-dir="1" aria-label="Öka: ${esc(label)}">+</button></div></div>`;
+}
+function renderSetup() {
+  return `<header class="top"><div class="brand">Stångloggen</div></header>
+  <div class="stack">
+    <section class="hero">
+      <div class="eyebrow">Kom igång</div>
+      <h1 class="title-lg">Tre pass i veckan. Lite tyngre varje gång.</h1>
+      <p class="muted">Pass A och B växlar. Klarar du alla reps höjs vikten automatiskt till nästa pass, och uppvärmningsseten räknas ut åt dig.</p>
+    </section>
+    <section class="card">
+      <h2>Startvikter</h2>
+      <p class="muted small">Förifyllt med förslag. Börja hellre för lätt än för tungt. De första veckorna handlar om tekniken, och vikten stiger snabbt ändå.</p>
+      <div class="srows">${liftsInProgram().map(l => stepperRow(LIFTS[l].name, START_NOTES[l], kg(S.settings.start[l]) + ' kg', 'start', l)).join('')}</div>
+      <button class="btn primary block" data-act="setup-done">Kom igång</button>
+    </section>
+    <section class="card">
+      <h2>Ny telefon?</h2>
+      <p class="muted small">Har du en backup på Google Drive kan du hämta hela historiken.</p>
+      <button class="btn block" data-act="restore">Återställ från backup</button>
+    </section>
+  </div>`;
+}
+function planRow(x) {
+  const st = S.settings;
+  const tag = {
+    start: '<span class="tag">Startvikt</span>',
+    up: `<span class="tag up">+${kg(x.weight - x.from)} kg</span>`,
+    same: `<span class="tag">Samma vikt · försök ${x.fails + 1}</span>`,
+    deload: `<span class="tag down">−${st.deloadPct} % efter ${x.fails} missar</span>`,
+  }[x.reason];
+  return `<li><div><div class="pname">${LIFTS[x.lift].name}</div><div class="psub"><span class="num">${x.sets}×${x.reps}</span>${tag}</div></div><div class="pweight num">${kg(x.weight)}<small>kg</small></div></li>`;
+}
+function resultRow(l) {
+  const ok = isSuccess(l);
+  return `<li><span class="rn">${LIFTS[l.lift].name}</span><span class="rw num">${kg(l.weight)} kg</span><span class="rs num">${l.sets.join(' · ')}</span><span class="rk ${ok ? 'ok' : 'miss'}">${ok ? 'Klart' : 'Missat'}</span></li>`;
+}
+function backupBanner() {
+  const n = unbacked(); if (!n) return '';
+  return `<section class="banner"><div><b>${n} pass utan backup</b><small>${S.lastBackup ? 'Senaste backup ' + fmtDay(S.lastBackup) : 'Ingen backup gjord ännu'}</small></div><button class="btn sm" data-act="backup">Spara till Drive</button></section>`;
+}
+function renderPlan() {
+  const letter = ui.choose || nextWorkout();
+  const ss = sortedSessions(), last = ss[ss.length - 1];
+  let info = 'Första passet. Ta det lugnt och fokusera på tekniken.', warn = '';
+  if (last) {
+    info = `Förra passet: ${last.workout}, ${fmtDay(last.date)} (${agoText(daysAgo(last.date))})`;
+    if ((Date.now() - Date.parse(last.date)) / 36e5 < 30) warn = '<p class="note">Styrkan byggs under vilodagarna. Vila gärna minst en dag mellan passen.</p>';
+  }
+  return `<header class="top"><div class="brand">Stångloggen</div><div class="aux">${fmtDay(new Date().toISOString())}</div></header>
+  <div class="stack">
+    <section class="hero">
+      <div class="eyebrow">Nästa pass</div>
+      <div class="hero-row"><h1 class="workout">Pass <span>${letter}</span></h1><button class="btn ghost sm" data-act="switch">Byt till ${letter === 'A' ? 'B' : 'A'}</button></div>
+      <p class="muted">${esc(info)}</p>
+      ${warn}
+      <ol class="plan">${plan(letter).map(planRow).join('')}</ol>
+      <button class="btn primary block" data-act="start">Starta passet</button>
+    </section>
+    ${backupBanner()}
+    ${last ? `<section class="card">
+      <div class="card-head"><h2>Senaste pass</h2><button class="link" data-act="tab" data-tab="historik">All historik</button></div>
+      <p class="muted small">Pass ${last.workout} · ${fmtDay(last.date)} · ${fmtTime(last.date)}${last.bodyweight ? ` · kroppsvikt ${kg(last.bodyweight)} kg` : ''}</p>
+      <ul class="results">${last.lifts.map(resultRow).join('')}</ul>
+      ${last.note ? `<p class="note-text small">${esc(last.note)}</p>` : ''}
+    </section>` : ''}
+  </div>`;
+}
+
+/* ---------- Vy: passredigering (pågående, ändra, i efterhand) ---------- */
+function setBtn(l, i, j, r) {
+  const cls = r == null ? '' : r >= l.target.reps ? 'done' : 'miss';
+  return `<button class="set ${cls}" data-act="set" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1}: ${r == null ? 'inte gjort' : r + ' reps'}">${r == null ? l.target.reps : r}</button>`;
+}
+function warmBlock(l, i) {
+  const ws = warmups(l.lift, l.weight);
+  if (!ws.length) return '<p class="hint">Ingen extra uppvärmning behövs, arbetsvikten är tom stång.</p>';
+  return `<div><div class="label">Uppvärmning</div><div class="wchips">${ws.map((w, k) => `<button class="wchip ${l.warm[k] ? 'done' : ''}" data-act="warm" data-i="${i}" data-k="${k}" aria-pressed="${!!l.warm[k]}"><b class="num">${kg(w.w)}</b><span>× ${w.r}</span><small>${platesShort(w.w)}</small></button>`).join('')}</div></div>`;
+}
+function liftCard(d, l, i) {
+  const live = d.mode === 'live';
+  const allDone = l.sets.every(r => r != null);
+  const ok = allDone && l.sets.every(r => r >= l.target.reps);
+  const pp = platesPerSide(l.weight);
+  return `<article class="card lift" id="lift-${i}">
+    <div class="lift-head"><h2>${LIFTS[l.lift].name}</h2><span class="scheme num">${l.target.sets}×${l.target.reps}</span>${allDone ? `<span class="rk ${ok ? 'ok' : 'miss'}">${ok ? 'Klart' : 'Missat'}</span>` : ''}</div>
+    <div class="wrow">
+      <button class="step" data-act="w" data-i="${i}" data-dir="-1" aria-label="Minska vikten för ${LIFTS[l.lift].name}">−</button>
+      <label class="wbox"><input id="w-${i}" data-f="weight" data-i="${i}" inputmode="decimal" autocomplete="off" value="${kg(l.weight)}" aria-label="Arbetsvikt ${LIFTS[l.lift].name} i kg"><span>kg</span></label>
+      <button class="step" data-act="w" data-i="${i}" data-dir="1" aria-label="Öka vikten för ${LIFTS[l.lift].name}">+</button>
+    </div>
+    <div class="plates">${plateSvg(pp)}<span>${plateText(pp)}</span></div>
+    ${live ? warmBlock(l, i) : ''}
+    <div><div class="sets-head"><span class="label">Arbetsset</span>${l.sets.some(r => r != null) ? `<button class="reset" data-act="reset-sets" data-i="${i}" aria-label="Nollställ arbetsseten för ${LIFTS[l.lift].name}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M5.5 15a7 7 0 1 0 1.2-7.4L4 9"/></svg>Nollställ</button>` : ''}</div><div class="sets">${l.sets.map((r, j) => setBtn(l, i, j, r)).join('')}</div></div>
+  </article>`;
+}
+function renderEditor(d) {
+  const live = d.mode === 'live';
+  const title = live ? `Pass ${d.workout}` : d.mode === 'edit' ? `Ändra pass ${d.workout}` : 'Registrera pass';
+  return `<header class="top"><div class="brand">${title}${live ? ' <span class="live-dot">pågår</span>' : ''}</div><div class="aux">${live ? 'Start ' + fmtTime(d.date) : ''}</div></header>
+  <div class="stack">
+    ${d.mode === 'add' ? `<div class="seg" role="group" aria-label="Välj pass">${['A', 'B'].map(x => `<button data-act="d-letter" data-l="${x}" aria-pressed="${d.workout === x}">Pass ${x}</button>`).join('')}</div>` : ''}
+    ${live ? `<button class="gen ${d.general ? 'done' : ''}" data-act="general" aria-pressed="${!!d.general}"><span class="box"></span><span><b>Allmän uppvärmning</b><small>5–10 min lätt cykel, rodd eller rask promenad</small></span></button>
+    <p class="hint">Tryck på ett set när det är klart. Fick du färre reps, tryck igen tills siffran stämmer. Tryckte du fel, håll in setet för att tömma det, eller välj Nollställ för hela övningen. Vilotimern startar automatiskt.</p>` : '<p class="hint">Tryck på ett set för att ändra antal reps. Håll in ett set för att tömma det.</p>'}
+    ${d.lifts.map((l, i) => liftCard(d, l, i)).join('')}
+    <section class="card">
+      <label class="field"><span class="cap">Datum och tid</span><input type="datetime-local" id="f-date" data-f="date" value="${toLocalInput(d.date)}"></label>
+      <label class="field"><span class="cap">Kroppsvikt (valfritt)</span><span class="unit"><input id="f-bw" data-f="bodyweight" inputmode="decimal" autocomplete="off" value="${d.bodyweight != null ? kg(d.bodyweight) : ''}"><em>kg</em></span></label>
+      <label class="field"><span class="cap">Anteckning</span><textarea id="f-note" data-f="note" rows="2" placeholder="Hur kändes det?">${esc(d.note)}</textarea></label>
+    </section>
+    <div class="stack-sm">
+      <button class="btn primary block" data-act="finish">${live ? 'Avsluta och spara' : 'Spara'}</button>
+      <button class="btn ghost block" data-act="discard">${live ? 'Avbryt passet' : 'Avbryt'}</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- Vy: Historik ---------- */
+function histRow(s) {
+  const d = new Date(s.date);
+  return `<button class="hrow" data-act="hist-open" data-id="${esc(s.id)}">
+    <span class="hdate"><b class="num">${d.getDate()}</b><span>${DAYS[d.getDay()]}</span></span>
+    <span class="hbody"><span class="htitle">Pass ${s.workout} <span class="muted">· ${fmtTime(s.date)}${s.bodyweight ? ' · ' + kg(s.bodyweight) + ' kg' : ''}</span></span>
+    <span class="hlifts">${s.lifts.map(l => `<span class="r ${isSuccess(l) ? 'ok' : 'miss'}">${LIFTS[l.lift].short} <b class="num">${kg(l.weight)}</b></span>`).join('')}</span></span>
+    <span class="chev" aria-hidden="true">›</span></button>`;
+}
+function histList() {
+  const add = '<button class="btn block ghost" data-act="hist-add">+ Registrera ett pass i efterhand</button>';
+  if (!S.sessions.length) return `<p class="empty">Inga pass ännu. När du sparar ditt första pass hamnar det här.</p>${add}`;
+  let html = add, month = '';
+  for (const s of sortedSessions().reverse()) {
+    const d = new Date(s.date), m = `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+    if (m !== month) { if (month) html += '</div>'; html += `<h3 class="month">${m}</h3><div class="hlist">`; month = m; }
+    html += histRow(s);
+  }
+  return html + '</div>';
+}
+function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function chartSvg(pts) {
+  const W = 340, H = 200, L = 40, R = 18, T = 26, B = 26;
+  const ys = pts.map(p => p.y); let lo = Math.min(...ys), hi = Math.max(...ys);
+  const span = hi - lo || 10, step = niceStep(span / 4);
+  lo = Math.floor((lo - span * 0.05) / step) * step; hi = Math.ceil((hi + span * 0.05) / step) * step;
+  if (hi - lo < step) hi = lo + step;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const X = t => t1 === t0 ? L + (W - L - R) / 2 : L + (t - t0) / (t1 - t0) * (W - L - R);
+  const Y = y => T + (hi - y) / (hi - lo) * (H - T - B);
+  let g = '';
+  for (let v = lo; v <= hi + 1e-9; v += step) g += `<line class="c-grid" x1="${L}" x2="${W - R}" y1="${fix(Y(v))}" y2="${fix(Y(v))}"/><text class="c-axis" x="${L - 6}" y="${fix(Y(v) + 4)}" text-anchor="end">${kg(v)}</text>`;
+  const dlab = t => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  g += `<text class="c-axis" x="${L}" y="${H - 6}" text-anchor="start">${dlab(t0)}</text>`;
+  if (t1 !== t0) g += `<text class="c-axis" x="${W - R}" y="${H - 6}" text-anchor="end">${dlab(t1)}</text>`;
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${fix(X(p.t))},${fix(Y(p.y))}`).join('');
+  const area = pts.length > 1 ? `<path class="c-area" d="${line}L${fix(X(t1))},${fix(Y(lo))}L${fix(X(t0))},${fix(Y(lo))}Z"/>` : '';
+  const dots = pts.map((p, i) => i === pts.length - 1 ? '' : `<circle class="c-pt ${p.ok === false ? 'miss' : ''}" cx="${fix(X(p.t))}" cy="${fix(Y(p.y))}" r="3.5"/>`).join('');
+  const e = pts[pts.length - 1], ex = X(e.t), ey = Y(e.y);
+  const anchor = ex > W - 60 ? 'end' : 'middle';
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Diagram över ${pts.length} värden">${g}${area}<path class="c-line" d="${line}"/>${dots}<circle class="${e.ok === false ? 'c-pt miss' : 'c-end'}" cx="${fix(ex)}" cy="${fix(ey)}" r="5.5"/><text class="c-endlabel" x="${fix(anchor === 'end' ? ex + 4 : ex)}" y="${fix(ey - 11)}" text-anchor="${anchor}">${kg(e.y)} kg</text></svg>`;
+}
+function charts() {
+  if (!S.sessions.length) return '<p class="empty">Här visas hur vikterna utvecklas när du har sparat några pass.</p>';
+  const opts = ORDER.filter(l => liftLog(l).length).map(l => [l, LIFTS[l].name]);
+  const bw = sortedSessions().filter(s => s.bodyweight);
+  if (bw.length) opts.push(['bw', 'Kroppsvikt']);
+  if (!opts.some(o => o[0] === ui.chartLift)) ui.chartLift = opts[0][0];
+  const k = ui.chartLift; let pts, stats;
+  const u = v => `${kg(v)}<small>kg</small>`;
+  if (k === 'bw') {
+    pts = bw.map(s => ({ t: Date.parse(s.date), y: s.bodyweight }));
+    const a = pts[0].y, b = pts[pts.length - 1].y;
+    stats = [['Första', u(a)], ['Senaste', u(b)], ['Förändring', `${signed(b - a)}<small>kg</small>`], ['Vägningar', pts.length]];
+  } else {
+    const log = liftLog(k);
+    pts = log.map(x => ({ t: Date.parse(x.date), y: x.weight, ok: x.ok }));
+    const a = log[0].weight, b = log[log.length - 1].weight;
+    stats = [['Första', u(a)], ['Senaste', u(b)], ['Ökning', `${signed(b - a)}<small>kg</small>`], ['Pass', log.length]];
+  }
+  return `<div class="chips" role="group" aria-label="Välj övning">${opts.map(([key, t]) => `<button class="chip" data-act="chart" data-k="${key}" aria-pressed="${key === k}">${t}</button>`).join('')}</div>
+  <section class="card">
+    <div class="stats">${stats.map(([l, v]) => `<div class="stat"><b class="num">${v}</b><span>${l}</span></div>`).join('')}</div>
+    ${chartSvg(pts)}
+    ${k !== 'bw' ? '<div class="legend"><span><i></i>Alla reps klara</span><span><i class="m"></i>Missade reps</span></div>' : ''}
+  </section>`;
+}
+function renderHistory() {
+  if (ui.editing) return renderEditor(ui.editing);
+  const v = ui.histView;
+  return `<header class="top"><div class="brand">Historik</div><div class="aux">${S.sessions.length} pass</div></header>
+  <div class="stack">
+    <div class="seg" role="group" aria-label="Visa">${[['list', 'Pass'], ['chart', 'Utveckling']].map(([key, t]) => `<button data-act="hist-view" data-v="${key}" aria-pressed="${v === key}">${t}</button>`).join('')}</div>
+    ${v === 'list' ? histList() : charts()}
+  </div>`;
+}
+
+/* ---------- Vy: Inställningar ---------- */
+const isStandalone = () => { try { return matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } };
+function installCard() {
+  if (IN_FRAME || isStandalone()) return '';
+  if (ui.installEvt) return '<section class="card"><h2>Installera appen</h2><p class="muted small">Lägg Stångloggen på startskärmen så fungerar den som en vanlig app, även utan nät.</p><button class="btn primary block" data-act="install">Installera</button></section>';
+  return '<section class="card"><h2>Installera appen</h2><p class="muted small">Öppna Chromes meny <b>⋮</b> och välj <b>Installera app</b> eller <b>Lägg till på startskärmen</b>. Då fungerar appen även utan nät.</p></section>';
+}
+function toggleRow(label, key) {
+  return `<label class="srow"><span class="sl"><b>${label}</b></span><input type="checkbox" class="switch" data-act="toggle" data-key="${key}" ${S.settings[key] ? 'checked' : ''}></label>`;
+}
+function renderSettings() {
+  const st = S.settings, lifts = liftsInProgram(), n = unbacked();
+  const plateColor = p => (PLATE_LOOK[p] || ['--p-chrome'])[0];
+  return `<header class="top"><div class="brand">Inställningar</div></header>
+  <div class="stack">
+    ${installCard()}
+    <section class="card">
+      <h2>Backup till Google Drive</h2>
+      <p class="muted small">Allt sparas i telefonen. Backupen är en liten fil: tryck på knappen och välj <b>Spara på Drive</b> i menyn som öppnas. Byter du telefon installerar du appen igen och väljer <b>Återställ från backup</b>.</p>
+      <p class="status">${S.lastBackup ? `Senaste backup: ${fmtDay(S.lastBackup)} kl. ${fmtTime(S.lastBackup)}` : 'Ingen backup gjord ännu'}${n ? ` · <span class="warn">${n} pass sedan dess</span>` : ''}</p>
+      <div class="stack-sm">
+        <button class="btn primary block" data-act="backup">Spara backup till Drive</button>
+        <button class="btn block" data-act="restore">Återställ från backup</button>
+        <button class="btn block" data-act="csv">Exportera till kalkylark (CSV)</button>
+        <button class="btn block ghost" data-act="download">Ladda ner backupfilen</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Program</h2>
+      <div class="seg" role="group" aria-label="Fas">${[1, 2].map(p => `<button data-act="phase" data-p="${p}" aria-pressed="${st.phase === p}">Fas ${p}</button>`).join('')}</div>
+      <p class="muted small">${st.phase === 1
+        ? '<b>A:</b> knäböj, stående press, marklyft · <b>B:</b> knäböj, bänkpress, marklyft. Börja här.'
+        : '<b>A:</b> knäböj, stående press, marklyft · <b>B:</b> knäböj, bänkpress, frivändning 5×3. Byt när marklyft varje pass börjar bli svårt att återhämta sig från.'}</p>
+    </section>
+    <section class="card">
+      <h2>Startvikter</h2>
+      <p class="muted small">Används bara för en övning du inte har kört än. Sedan räknas vikten fram från senaste passet.</p>
+      <div class="srows">${lifts.map(l => stepperRow(LIFTS[l].name, '', kg(st.start[l]) + ' kg', 'start', l)).join('')}</div>
+    </section>
+    <section class="card">
+      <h2>Ökning per lyckat pass</h2>
+      <p class="muted small">Läggs på när du klarat alla reps i alla arbetsset.</p>
+      <div class="srows">${lifts.map(l => stepperRow(LIFTS[l].name, '', kg(st.inc[l]) + ' kg', 'inc', l)).join('')}</div>
+    </section>
+    <section class="card">
+      <h2>Utrustning</h2>
+      <div class="srows">${stepperRow('Stångens vikt', 'Vanlig olympisk stång väger 20 kg', kg(st.bar) + ' kg', 'bar')}</div>
+      <div><div class="label">Viktskivor som finns</div><div class="chips">${ALL_PLATES.map(p => `<button class="chip" data-act="plate" data-p="${p}" aria-pressed="${st.plates.includes(p)}"><i style="background:var(${plateColor(p)})"></i>${kg(p)}</button>`).join('')}</div></div>
+      <p class="muted small">Minsta möjliga viktökning blir ${kg(stepW())} kg (en av de minsta skivorna på varje sida).</p>
+    </section>
+    <section class="card">
+      <h2>Vila och missar</h2>
+      <div class="srows">
+        ${stepperRow('Vila efter lyckat set', '', fmtRest(st.restOk), 'restOk')}
+        ${stepperRow('Vila efter missat set', '', fmtRest(st.restFail), 'restFail')}
+        ${stepperRow('Sänk vikten efter', 'missade pass i rad på samma vikt', st.deloadAfter + ' st', 'deloadAfter')}
+        ${stepperRow('Sänk med', '', st.deloadPct + ' %', 'deloadPct')}
+        ${toggleRow('Håll skärmen tänd under passet', 'wakeLock')}
+        ${toggleRow('Ljud när vilan är slut', 'sound')}
+      </div>
+    </section>
+    <section class="card">
+      <details class="rules"><summary>Så räknar appen</summary><ul>
+        <li>Pass A och B växlar. Knäböj körs varje pass.</li>
+        <li>Klarar du alla reps i alla arbetsset höjs vikten nästa gång med ökningen ovan.</li>
+        <li>Missar du någon rep kör du samma vikt nästa gång.</li>
+        <li>Missar du ${st.deloadAfter} pass i rad på samma vikt sänks den med ${st.deloadPct} %, och du bygger upp igen.</li>
+        <li>Ändrar du vikten under passet räknas nästa pass från vikten du faktiskt körde.</li>
+        <li>Uppvärmning: tom stång 2×5, sedan ett till tre set med stigande vikt och färre reps. Kort vila mellan dem.</li>
+        <li>Vila ${fmtRest(st.restOk)} efter ett lyckat arbetsset och ${fmtRest(st.restFail)} efter en miss.</li>
+      </ul></details>
+    </section>
+    <section class="card">
+      <h2>Radera</h2>
+      <p class="muted small">Tar bort alla pass och inställningar från telefonen. Backupfiler på Drive påverkas inte.</p>
+      <button class="btn danger block" data-act="reset">Radera all data</button>
+    </section>
+    <p class="muted small center">Stångloggen · dina pass sparas bara på den här enheten och i dina backupfiler</p>
+  </div>`;
+}
+
+/* ---------- Render ---------- */
+function render() {
+  document.querySelectorAll('.tab').forEach(b => {
+    b.setAttribute('aria-current', b.dataset.tab === ui.tab ? 'page' : 'false');
+    if (b.dataset.tab === 'pass') b.classList.toggle('live', !!S.active);
+  });
+  const warn = storageOk ? '' : '<p class="note" style="margin-top:12px">Telefonen tillåter inte att appen sparar data just nu. Det du gör kan försvinna när appen stängs.</p>';
+  $('#view').innerHTML = warn + (ui.tab === 'pass' ? renderPass() : ui.tab === 'historik' ? renderHistory() : renderSettings());
+}
+
+/* ---------- Ark (dialoger) och toast ---------- */
+let sheetDone = null, sheetActions = [];
+function sheet({ title, html, actions }) {
+  if (sheetDone) sheetDone(null);
+  return new Promise(resolve => {
+    const w = $('#sheet');
+    sheetActions = actions;
+    w.innerHTML = `<div class="sheet-back" data-sheet="x"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><h2 id="sheetTitle">${esc(title)}</h2><div class="sheet-body">${html || ''}</div><div class="sheet-actions">${actions.map((a, i) => `<button class="btn block ${a.kind || ''}" data-sheet="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;
+    w.hidden = false;
+    sheetDone = v => { w.hidden = true; w.innerHTML = ''; sheetDone = null; resolve(v); };
+    const first = w.querySelector('.sheet-actions button'); if (first) first.focus({ preventScroll: true });
+  });
+}
+let toastT = null;
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3400); }
+
+/* ---------- Vilotimer, ljud, skärmlås ---------- */
+let tickId = null, actx = null, wl = null;
+function setTimer(t) { ui.timer = t; if (S.active) { S.active.timer = t; save(); } tick(); }
+function startTimer(ok) { const secs = ok ? S.settings.restOk : S.settings.restFail; setTimer({ end: Date.now() + secs * 1000, total: secs, ok, done: false }); }
+function tick() {
+  const el = $('#timer'), t = ui.timer;
+  document.body.classList.toggle('timing', !!t);
+  if (!t) { el.hidden = true; if (tickId) { clearInterval(tickId); tickId = null; } return; }
+  if (!tickId) tickId = setInterval(tick, 250);
+  const left = Math.max(0, Math.ceil((t.end - Date.now()) / 1000));
+  if (left === 0 && !t.done) { t.done = true; if (S.active) save(); ding(); }
+  el.hidden = false; el.classList.toggle('done', t.done);
+  $('#tTime').textContent = t.done ? 'Kör!' : fmtSec(left);
+  $('#tLabel').textContent = t.done ? 'Dags för nästa set' : t.ok ? 'Vila' : 'Vila lite längre efter en miss';
+  $('#tFill').style.width = (t.done ? 100 : 100 * (1 - left / t.total)).toFixed(1) + '%';
+}
+function unlockAudio() { try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {} }
+function ding() {
+  try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 450]); } catch (e) {}
+  if (!S.settings.sound || !actx) return;
+  try {
+    const t0 = actx.currentTime;
+    [0, 0.28, 0.56].forEach((d, i) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = i === 2 ? 1175 : 880; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.35, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.2);
+      o.start(t0 + d); o.stop(t0 + d + 0.22);
+    });
+  } catch (e) {}
+}
+async function updateWakeLock() {
+  const want = !!S.active && S.settings.wakeLock && document.visibilityState === 'visible';
+  try {
+    if (want && !wl && 'wakeLock' in navigator) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); }
+    else if (!want && wl) { const w = wl; wl = null; await w.release(); }
+  } catch (e) { wl = null; }
+}
+
+/* ---------- Spara pass ---------- */
+const names = ls => ls.map(l => LIFTS[l.lift].name.toLowerCase()).join(', ').replace(/^./, c => c.toUpperCase());
+async function finish() {
+  const d = cur(); if (!d) return;
+  const live = d.mode === 'live';
+  const skipped = d.lifts.filter(l => l.sets.every(r => r == null));
+  const partial = d.lifts.filter(l => l.sets.some(r => r == null) && !l.sets.every(r => r == null));
+  if (skipped.length === d.lifts.length) {
+    await sheet({ title: 'Inga set markerade', html: '<p>Tryck på seten du har gjort innan du sparar.</p>', actions: [{ label: 'OK', kind: 'primary', value: true }] });
+    return;
+  }
+  if (skipped.length || partial.length) {
+    const lines = [];
+    if (partial.length) lines.push(`<li>${names(partial)}: set som inte är markerade räknas som missade.</li>`);
+    if (skipped.length) lines.push(`<li>${names(skipped)} sparas inte och räknas som överhoppad. Nästa gång blir det samma vikt.</li>`);
+    const ok = await sheet({ title: 'Spara ändå?', html: `<ul class="plain">${lines.join('')}</ul>`, actions: [{ label: 'Spara', kind: 'primary', value: true }, { label: live ? 'Fortsätt passet' : 'Tillbaka', kind: 'ghost', value: false }] });
+    if (!ok) return;
+  }
+  const session = {
+    id: d.id, date: d.date, workout: d.workout, bodyweight: d.bodyweight == null ? null : d.bodyweight, note: (d.note || '').trim(), saved: Date.now(),
+    lifts: d.lifts.filter(l => !skipped.includes(l)).map(l => ({ lift: l.lift, weight: l.weight, target: l.target, sets: l.sets.map(r => r == null ? 0 : r) })),
+  };
+  const idx = S.sessions.findIndex(x => x.id === session.id);
+  if (idx >= 0) S.sessions[idx] = session; else S.sessions.push(session);
+  S.sessions.sort((a, b) => a.date.localeCompare(b.date));
+  S.setupDone = true;
+  if (live) { S.active = null; ui.timer = null; tick(); } else ui.editing = null;
+  save(); requestPersist(); render(); window.scrollTo(0, 0); updateWakeLock();
+  if (live) {
+    const nl = nextWorkout(), nx = plan(nl);
+    const html = `<ul class="results">${session.lifts.map(resultRow).join('')}</ul>
+      <div><div class="label">Nästa pass · ${nl}</div><p>${nx.map(x => `${LIFTS[x.lift].name} <b class="num">${kg(x.weight)} kg</b>`).join(' · ')}</p></div>
+      <p class="muted small">Spara en backup på Google Drive, så finns historiken kvar om du byter telefon.</p>`;
+    const v = await sheet({ title: 'Passet är sparat', html, actions: [{ label: 'Spara backup till Drive', kind: 'primary', value: 'backup' }, { label: 'Stäng', kind: 'ghost', value: null }] });
+    if (v === 'backup') shareBackup();
+  } else toast('Passet är sparat');
+}
+async function discard() {
+  const d = cur(); if (!d) return;
+  if (d.mode === 'live') {
+    if (d.lifts.some(l => l.sets.some(r => r != null))) {
+      const ok = await sheet({ title: 'Avbryta passet?', html: '<p>Det du har markerat hittills sparas inte.</p>', actions: [{ label: 'Avbryt passet', kind: 'danger', value: true }, { label: 'Fortsätt träna', kind: 'ghost', value: false }] });
+      if (!ok) return;
+    }
+    S.active = null; ui.timer = null; tick(); save(); updateWakeLock();
+  } else ui.editing = null;
+  render(); window.scrollTo(0, 0);
+}
+async function openSession(id) {
+  const s = S.sessions.find(x => x.id === id); if (!s) return;
+  const rows = s.lifts.map(l => { const ok = isSuccess(l); return `<tr><td><b>${LIFTS[l.lift].name}</b><br><span class="muted small">${l.target.sets}×${l.target.reps}</span></td><td class="num">${kg(l.weight)} kg</td><td class="num">${l.sets.join(' · ')}</td><td><span class="rk ${ok ? 'ok' : 'miss'}">${ok ? 'Klart' : 'Missat'}</span></td></tr>`; }).join('');
+  const html = `<p class="muted">${fmtDay(s.date)} kl. ${fmtTime(s.date)}</p><div class="tablewrap"><table class="dtable">${rows}</table></div>${s.bodyweight ? `<p>Kroppsvikt: <b>${kg(s.bodyweight)} kg</b></p>` : ''}${s.note ? `<p class="note-text">${esc(s.note)}</p>` : ''}`;
+  const v = await sheet({ title: `Pass ${s.workout}`, html, actions: [{ label: 'Ändra', value: 'edit' }, { label: 'Ta bort passet', kind: 'danger', value: 'delete' }, { label: 'Stäng', kind: 'ghost', value: null }] });
+  if (v === 'edit') { ui.tab = 'historik'; ui.editing = draftFromSession(s); render(); window.scrollTo(0, 0); }
+  if (v === 'delete') {
+    const ok = await sheet({ title: 'Ta bort passet?', html: `<p>Pass ${s.workout} från ${fmtDay(s.date)} tas bort. Nästa pass räknas om utifrån de pass som finns kvar.</p>`, actions: [{ label: 'Ta bort', kind: 'danger', value: true }, { label: 'Avbryt', kind: 'ghost', value: false }] });
+    if (ok) { S.sessions = S.sessions.filter(x => x.id !== id); save(); render(); toast('Passet är borttaget'); }
+  }
+}
+
+/* ---------- Backup ---------- */
+function backupJson() { return JSON.stringify({ app: 'stangloggen', format: 1, exported: new Date().toISOString(), data: { settings: S.settings, sessions: S.sessions } }); }
+function markBackup() { S.lastBackup = new Date().toISOString(); save(); render(); }
+function downloadFile(name, blob) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function previewNote() {
+  return sheet({ title: 'Förhandsvisning', html: '<p>Förhandsvisningen kan inte spara filer. När appen är installerad på telefonen öppnar knappen Androids delningsmeny, där du väljer <b>Spara på Drive</b>.</p>', actions: [{ label: 'OK', kind: 'primary', value: true }] });
+}
+async function shareFile(name, text, type, title) {
+  const blob = new Blob([text], { type });
+  let file = null; try { file = new File([blob], name, { type }); } catch (e) {}
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title }); return 'shared'; }
+    catch (e) { if (e && e.name === 'AbortError') return 'aborted'; }
+  }
+  downloadFile(name, blob); return 'downloaded';
+}
+async function shareBackup() {
+  if (IN_FRAME) return previewNote();
+  const r = await shareFile(`stangloggen-backup-${ymd()}.txt`, backupJson(), 'text/plain', 'Stångloggen backup');
+  if (r === 'aborted') return toast('Ingen backup sparades');
+  markBackup();
+  toast(r === 'shared' ? 'Backupen är skickad' : 'Backupen ligger i Nedladdningar. Ladda upp den till Google Drive.');
+}
+async function downloadBackup() {
+  if (IN_FRAME) return previewNote();
+  downloadFile(`stangloggen-backup-${ymd()}.txt`, new Blob([backupJson()], { type: 'text/plain' }));
+  markBackup(); toast('Backupen ligger i Nedladdningar');
+}
+async function shareCsv() {
+  if (IN_FRAME) return previewNote();
+  if (!S.sessions.length) return toast('Det finns inga pass att exportera än');
+  const q = v => { const s = String(v == null ? '' : v); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const rows = [['Datum', 'Tid', 'Pass', 'Övning', 'Vikt (kg)', 'Set', 'Reps', 'Mål reps', 'Lyckat', 'Kroppsvikt (kg)', 'Anteckning']];
+  for (const s of sortedSessions()) for (const l of s.lifts) l.sets.forEach((r, j) => rows.push([ymd(new Date(s.date)), fmtTime(s.date), s.workout, LIFTS[l.lift].name, kg(l.weight), j + 1, r, l.target.reps, isSuccess(l) ? 'ja' : 'nej', s.bodyweight ? kg(s.bodyweight) : '', j === 0 ? s.note || '' : '']));
+  const r = await shareFile(`stangloggen-${ymd()}.csv`, '﻿' + rows.map(x => x.map(q).join(';')).join('\r\n'), 'text/csv', 'Stångloggen');
+  if (r === 'downloaded') toast('CSV-filen ligger i Nedladdningar');
+}
+async function onRestoreFile(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  let data = null;
+  try {
+    const o = JSON.parse(await f.text());
+    if (o && o.app === 'stangloggen' && o.data && Array.isArray(o.data.sessions)) data = o.data;
+  } catch (e) {}
+  if (!data) {
+    await sheet({ title: 'Filen gick inte att läsa', html: '<p>Välj en backupfil från Stångloggen. Den heter ungefär <b>stangloggen-backup-2026-11-19.txt</b>.</p>', actions: [{ label: 'OK', kind: 'primary', value: true }] });
+    return;
+  }
+  const sessions = data.sessions.filter(validSession);
+  const lastD = sessions.map(s => s.date).sort().pop();
+  const ok = await sheet({ title: 'Återställa backupen?', html: `<p>Backupen innehåller <b>${sessions.length} pass</b>${lastD ? `, det senaste ${fmtDay(lastD)}` : ''}.</p>${S.sessions.length ? `<p>Den ersätter de ${S.sessions.length} pass som finns i appen nu.</p>` : ''}`, actions: [{ label: 'Återställ', kind: 'primary', value: true }, { label: 'Avbryt', kind: 'ghost', value: false }] });
+  if (!ok) return;
+  S.settings = mergeSettings(data.settings);
+  S.sessions = sessions.sort((a, b) => a.date.localeCompare(b.date));
+  S.setupDone = true; S.lastBackup = new Date().toISOString();
+  save(); requestPersist(); ui.tab = 'pass'; ui.editing = null; render(); window.scrollTo(0, 0);
+  toast(`${sessions.length} pass är återställda`);
+}
+async function resetAll() {
+  const ok = await sheet({ title: 'Radera all data?', html: `<p>Alla ${S.sessions.length} pass och dina inställningar tas bort från telefonen. Det går inte att ångra, men du kan återställa från en backupfil.</p>`, actions: [{ label: 'Radera allt', kind: 'danger', value: true }, { label: 'Avbryt', kind: 'ghost', value: false }] });
+  if (!ok) return;
+  S = freshState(); ui.timer = null; ui.editing = null; ui.choose = null; ui.tab = 'pass';
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  save(); tick(); updateWakeLock(); render(); window.scrollTo(0, 0); toast('All data är raderad');
+}
+
+/* ---------- Händelser ---------- */
+function adjust(kind, key, dir) {
+  const st = S.settings;
+  if (kind === 'start') st.start[key] = clamp(fix(st.start[key] + dir * stepW()), 0, 500);
+  else if (kind === 'inc') st.inc[key] = clamp(fix(st.inc[key] + dir * stepW()), 0, 20);
+  else if (kind === 'bar') st.bar = clamp(fix(st.bar + dir * 2.5), 5, 30);
+  else if (kind === 'restOk') st.restOk = clamp(st.restOk + dir * 15, 30, 600);
+  else if (kind === 'restFail') st.restFail = clamp(st.restFail + dir * 15, 30, 900);
+  else if (kind === 'deloadAfter') st.deloadAfter = clamp(st.deloadAfter + dir, 1, 6);
+  else if (kind === 'deloadPct') st.deloadPct = clamp(st.deloadPct + dir * 5, 5, 30);
+  save(); render();
+}
+function tapSet(i, j) {
+  const d = cur(), l = d.lifts[i], r = l.sets[j], t = l.target.reps;
+  const nr = r == null ? t : r > 0 ? r - 1 : null;
+  l.sets[j] = nr;
+  if (d.mode === 'live') { if (nr == null) setTimer(null); else startTimer(nr >= t); }
+  persist(d); render();
+}
+document.addEventListener('click', e => {
+  if (lpFiredAt && Date.now() - lpFiredAt < 800 && e.target.closest('.set')) { lpFiredAt = 0; return; }
+  const sb = e.target.closest('[data-sheet]');
+  if (sb && sheetDone) { const k = sb.dataset.sheet; sheetDone(k === 'x' ? null : sheetActions[+k].value); return; }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  unlockAudio();
+  const a = b.dataset.act, i = +b.dataset.i;
+  const d = cur();
+  switch (a) {
+    case 'tab': ui.tab = b.dataset.tab; render(); window.scrollTo(0, 0); break;
+    case 'setup-done': S.setupDone = true; save(); render(); break;
+    case 'adj': adjust(b.dataset.kind, b.dataset.key, +b.dataset.dir); break;
+    case 'switch': ui.choose = (ui.choose || nextWorkout()) === 'A' ? 'B' : 'A'; render(); break;
+    case 'start': S.active = newDraft(ui.choose || nextWorkout(), 'live'); ui.choose = null; S.setupDone = true; save(); render(); window.scrollTo(0, 0); updateWakeLock(); break;
+    case 'general': if (d) { d.general = !d.general; persist(d); render(); } break;
+    case 'warm': if (d) { const l = d.lifts[i], k = +b.dataset.k; l.warm[k] = !l.warm[k]; persist(d); render(); } break;
+    case 'set': if (d) tapSet(i, +b.dataset.j); break;
+    case 'reset-sets': if (d) { const l = d.lifts[i]; l.sets = l.sets.map(() => null); if (d.mode === 'live') setTimer(null); persist(d); render(); toast(`${LIFTS[l.lift].name}: arbetsseten är nollställda`); } break;
+    case 'w': if (d) { const l = d.lifts[i]; l.weight = Math.max(0, fix(l.weight + (+b.dataset.dir) * stepW())); persist(d); render(); } break;
+    case 'd-letter': if (ui.editing && ui.editing.mode === 'add' && ui.editing.workout !== b.dataset.l) { const o = ui.editing, nd = newDraft(b.dataset.l, 'add'); nd.date = o.date; nd.bodyweight = o.bodyweight; nd.note = o.note; ui.editing = nd; render(); } break;
+    case 'finish': finish(); break;
+    case 'discard': discard(); break;
+    case 'timer-add': if (ui.timer) { const t = ui.timer; if (t.done) { t.end = Date.now() + 30000; t.total = 30; t.done = false; } else { t.end += 30000; t.total += 30; } setTimer(t); } break;
+    case 'timer-stop': setTimer(null); break;
+    case 'hist-view': ui.histView = b.dataset.v; render(); break;
+    case 'hist-open': openSession(b.dataset.id); break;
+    case 'hist-add': ui.editing = newDraft(nextWorkout(), 'add'); render(); window.scrollTo(0, 0); break;
+    case 'chart': ui.chartLift = b.dataset.k; render(); break;
+    case 'backup': shareBackup(); break;
+    case 'download': downloadBackup(); break;
+    case 'csv': shareCsv(); break;
+    case 'restore': { const f = $('#restoreFile'); f.value = ''; f.click(); break; }
+    case 'phase': S.settings.phase = +b.dataset.p; save(); render(); break;
+    case 'plate': { const p = +b.dataset.p, st = S.settings; if (st.plates.includes(p)) { if (st.plates.length > 1) st.plates = st.plates.filter(x => x !== p); } else st.plates = st.plates.concat(p).sort((x, y) => y - x); save(); render(); break; }
+    case 'toggle': S.settings[b.dataset.key] = !!b.checked; save(); render(); updateWakeLock(); break;
+    case 'install': if (ui.installEvt) { const ev = ui.installEvt; ev.prompt(); ev.userChoice.finally(() => { ui.installEvt = null; render(); }); } break;
+    case 'reset': resetAll(); break;
+  }
+});
+/* Långt tryck på ett set tömmer just det setet */
+let lp = null, lpFiredAt = 0;
+function cancelLp() { if (lp) { clearTimeout(lp.t); lp.b.classList.remove('pressing'); lp = null; } }
+document.addEventListener('pointerdown', e => {
+  cancelLp(); lpFiredAt = 0;
+  const b = e.target.closest('.set[data-act="set"]'); if (!b) return;
+  const d = cur(); if (!d) return;
+  const i = +b.dataset.i, j = +b.dataset.j;
+  if (d.lifts[i].sets[j] == null) return;
+  b.classList.add('pressing');
+  lp = { b, x: e.clientX, y: e.clientY, t: setTimeout(() => {
+    lp = null; lpFiredAt = Date.now();
+    const dd = cur(); if (!dd) return;
+    const l = dd.lifts[i]; l.sets[j] = null;
+    if (dd.mode === 'live') setTimer(null);
+    try { if (navigator.vibrate) navigator.vibrate(40); } catch (err) {}
+    persist(dd); render(); toast(`${LIFTS[l.lift].name}: set ${j + 1} är tömt`);
+  }, 550) };
+});
+document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) cancelLp(); });
+document.addEventListener('pointerup', cancelLp);
+document.addEventListener('pointercancel', cancelLp);
+document.addEventListener('contextmenu', e => { if (e.target.closest('.set')) e.preventDefault(); });
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'restoreFile') { onRestoreFile(t); return; }
+  const f = t.dataset && t.dataset.f; if (!f) return;
+  const d = cur(); if (!d) return;
+  if (f === 'weight') { const n = parseNum(t.value); if (n != null && n < 1000) d.lifts[+t.dataset.i].weight = fix(n); persist(d); render(); }
+  else if (f === 'date') { const iso = fromLocalInput(t.value); if (iso) { d.date = iso; persist(d); } }
+  else if (f === 'bodyweight') { const n = parseNum(t.value); d.bodyweight = n && n > 20 && n < 400 ? fix(n) : null; t.value = d.bodyweight != null ? kg(d.bodyweight) : ''; persist(d); }
+});
+document.addEventListener('input', e => {
+  const t = e.target, f = t.dataset && t.dataset.f; if (f !== 'note') return;
+  const d = cur(); if (d) { d.note = t.value; persist(d); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetDone) sheetDone(null); });
+document.addEventListener('visibilitychange', () => { tick(); updateWakeLock(); });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.installEvt = e; if (ui.tab === 'installningar') render(); });
+window.addEventListener('appinstalled', () => { ui.installEvt = null; render(); });
+
+render(); tick(); updateWakeLock();
+if (!IN_FRAME && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
