@@ -3,24 +3,15 @@
 En träningslogg för styrketräning med skivstång enligt Starting Strength-upplägget (pass A/B, 3×5, marklyft 1×5).
 Appen räknar ut nästa pass, uppvärmningsset och vilka viktskivor som ska på stången. Den fungerar utan nät.
 
-## Installera på telefonen (gratis, cirka 10 minuter)
+**Adress:** <https://mrlundvik.github.io/stangloggen/>
 
-Appen behöver ligga på en webbadress en gång, sedan installeras den på telefonen. Enklast är GitHub Pages.
-Gör stegen på en dator, det är lättast så.
+## Installera på telefonen
 
-1. Skapa ett **privat** konto på <https://github.com/signup> (använd inte jobbkontot).
-2. Klicka på **+** uppe till höger och välj **New repository**.
-   - Namn: `stangloggen`
-   - Välj **Public** (koden blir synlig, men den innehåller inga uppgifter om dig. Dina pass sparas bara i telefonen.)
-   - Klicka på **Create repository**.
-3. Klicka på länken **uploading an existing file**. Dra in alla filer från zip-filen:
-   `index.html`, `manifest.webmanifest`, `sw.js`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`.
-   Klicka på **Commit changes**.
-4. Gå till **Settings → Pages**. Under *Build and deployment* väljer du **Deploy from a branch**, branch **main** och mapp **/ (root)**. Klicka på **Save**.
-5. Vänta en till två minuter. Adressen blir `https://DITT-ANVÄNDARNAMN.github.io/stangloggen/`.
-6. Öppna adressen i **Chrome** på telefonen. Tryck på menyn **⋮** och välj **Installera app** (ibland heter det **Lägg till på startskärmen**).
+1. Öppna adressen ovan i **Chrome** på telefonen.
+2. Tryck på menyn **⋮** och välj **Installera app** (ibland heter det **Lägg till på startskärmen**).
 
-Nu ligger Stångloggen bland dina appar och startar utan adressfält.
+Nu ligger Stångloggen bland dina appar och startar utan adressfält. Efter första starten fungerar den utan nät.
+Dina pass sparas bara i telefonen, inte på webbplatsen.
 
 ## Backup till Google Drive
 
@@ -31,7 +22,7 @@ Nu ligger Stångloggen bland dina appar och startar utan adressfält.
 
 ## Byta telefon
 
-1. Installera appen på den nya telefonen enligt steg 6 ovan.
+1. Installera appen på den nya telefonen enligt *Installera på telefonen* ovan.
 2. Välj **Återställ från backup** på startskärmen, eller under Inställningar.
 3. Välj den senaste backupfilen från Google Drive (`stangloggen-backup-ÅÅÅÅ-MM-DD.txt`).
 
@@ -46,5 +37,17 @@ Nu ligger Stångloggen bland dina appar och startar utan adressfält.
 
 ## Uppdatera appen
 
-Ladda upp den nya `index.html` (och övriga ändrade filer) till samma repository.
-Telefonen hämtar uppdateringen i bakgrunden och visar den nästa gång appen startas.
+Appen publiceras med GitHub Pages från grenen `main`, mappen `/` (root).
+
+- Ändringar som pushas till `main` ligger ute efter en till två minuter.
+- Telefonen hämtar uppdateringen i bakgrunden och visar den nästa gång appen startas.
+- Lägger du till eller byter namn på en fil som ska fungera utan nät, för in den i `ASSETS` i `sw.js` och räkna upp `CACHE` (till exempel `stangloggen-v4`).
+
+## Filer
+
+| Fil | Innehåll |
+|---|---|
+| `index.html` | Hela appen: gränssnitt, logik och lagring i telefonen (`localStorage`) |
+| `sw.js` | Service worker som gör att appen fungerar utan nät |
+| `manifest.webmanifest` | Namn, färger och ikoner för installationen |
+| `icon-*.png` | Appikoner (192 och 512 px, plus en maskable-variant för Android) |
