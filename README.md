@@ -34,6 +34,7 @@ Dina pass sparas bara i telefonen, inte på webbplatsen.
 - Missar du en rep blir det samma vikt nästa gång. Efter tre missade pass i rad på samma vikt sänks vikten med 10 %.
 - Ändrar du vikten under passet räknas nästa pass från vikten du faktiskt körde.
 - Uppvärmning: tom stång 2×5, sedan ett till tre set med stigande vikt och färre reps.
+- Vilotimern startar när du trycker på ett set: 3 min efter ett lyckat arbetsset, 5 min efter en miss och 1 min efter ett uppvärmningsset. Tiderna går att ändra under Inställningar.
 
 ## Uppdatera appen
 

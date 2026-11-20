@@ -296,7 +296,7 @@ const DEFAULTS = {
   phase: 1, bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25],
   start: { squat: 30, bench: 35, press: 22.5, deadlift: 50, clean: 30 },
   inc:   { squat: 2.5, bench: 2.5, press: 2.5, deadlift: 5, clean: 2.5 },
-  restOk: 180, restFail: 300, deloadAfter: 3, deloadPct: 10, wakeLock: true, sound: true,
+  restOk: 180, restFail: 300, restWarm: 60, deloadAfter: 3, deloadPct: 10, wakeLock: true, sound: true,
 };
 const START_NOTES = {
   squat: 'Börja lätt och lär dig djupet först',
@@ -558,7 +558,7 @@ function renderEditor(d) {
   <div class="stack">
     ${d.mode === 'add' ? `<div class="seg" role="group" aria-label="Välj pass">${['A', 'B'].map(x => `<button data-act="d-letter" data-l="${x}" aria-pressed="${d.workout === x}">Pass ${x}</button>`).join('')}</div>` : ''}
     ${live ? `<button class="gen ${d.general ? 'done' : ''}" data-act="general" aria-pressed="${!!d.general}"><span class="box"></span><span><b>Allmän uppvärmning</b><small>5–10 min lätt cykel, rodd eller rask promenad</small></span></button>
-    <p class="hint">Tryck på ett set när det är klart. Fick du färre reps, tryck igen tills siffran stämmer. Tryckte du fel, håll in setet för att tömma det, eller välj Nollställ för hela övningen. Vilotimern startar automatiskt.</p>` : '<p class="hint">Tryck på ett set för att ändra antal reps. Håll in ett set för att tömma det.</p>'}
+    <p class="hint">Tryck på ett set när det är klart. Fick du färre reps, tryck igen tills siffran stämmer. Tryckte du fel, håll in setet för att tömma det, eller välj Nollställ för hela övningen. Vilotimern startar automatiskt, även efter uppvärmningsseten.</p>` : '<p class="hint">Tryck på ett set för att ändra antal reps. Håll in ett set för att tömma det.</p>'}
     ${d.lifts.map((l, i) => liftCard(d, l, i)).join('')}
     <section class="card">
       <label class="field"><span class="cap">Datum och tid</span><input type="datetime-local" id="f-date" data-f="date" value="${toLocalInput(d.date)}"></label>
@@ -704,6 +704,7 @@ function renderSettings() {
       <div class="srows">
         ${stepperRow('Vila efter lyckat set', '', fmtRest(st.restOk), 'restOk')}
         ${stepperRow('Vila efter missat set', '', fmtRest(st.restFail), 'restFail')}
+        ${stepperRow('Vila efter uppvärmningsset', '', fmtRest(st.restWarm), 'restWarm')}
         ${stepperRow('Sänk vikten efter', 'missade pass i rad på samma vikt', st.deloadAfter + ' st', 'deloadAfter')}
         ${stepperRow('Sänk med', '', st.deloadPct + ' %', 'deloadPct')}
         ${toggleRow('Håll skärmen tänd under passet', 'wakeLock')}
@@ -717,7 +718,7 @@ function renderSettings() {
         <li>Missar du någon rep kör du samma vikt nästa gång.</li>
         <li>Missar du ${st.deloadAfter} pass i rad på samma vikt sänks den med ${st.deloadPct} %, och du bygger upp igen.</li>
         <li>Ändrar du vikten under passet räknas nästa pass från vikten du faktiskt körde.</li>
-        <li>Uppvärmning: tom stång 2×5, sedan ett till tre set med stigande vikt och färre reps. Kort vila mellan dem.</li>
+        <li>Uppvärmning: tom stång 2×5, sedan ett till tre set med stigande vikt och färre reps. Vila ${fmtRest(st.restWarm)} mellan dem.</li>
         <li>Vila ${fmtRest(st.restOk)} efter ett lyckat arbetsset och ${fmtRest(st.restFail)} efter en miss.</li>
       </ul></details>
     </section>
@@ -759,7 +760,7 @@ function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = 
 /* ---------- Vilotimer, ljud, skärmlås ---------- */
 let tickId = null, actx = null, wl = null;
 function setTimer(t) { ui.timer = t; if (S.active) { S.active.timer = t; save(); } tick(); }
-function startTimer(ok) { const secs = ok ? S.settings.restOk : S.settings.restFail; setTimer({ end: Date.now() + secs * 1000, total: secs, ok, done: false }); }
+function startTimer(ok, warm) { const secs = warm ? S.settings.restWarm : ok ? S.settings.restOk : S.settings.restFail; setTimer({ end: Date.now() + secs * 1000, total: secs, ok, warm: !!warm, done: false }); }
 function tick() {
   const el = $('#timer'), t = ui.timer;
   document.body.classList.toggle('timing', !!t);
@@ -769,7 +770,7 @@ function tick() {
   if (left === 0 && !t.done) { t.done = true; if (S.active) save(); ding(); }
   el.hidden = false; el.classList.toggle('done', t.done);
   $('#tTime').textContent = t.done ? 'Kör!' : fmtSec(left);
-  $('#tLabel').textContent = t.done ? 'Dags för nästa set' : t.ok ? 'Vila' : 'Vila lite längre efter en miss';
+  $('#tLabel').textContent = t.done ? 'Dags för nästa set' : t.warm ? 'Kort vila' : t.ok ? 'Vila' : 'Vila lite längre efter en miss';
   $('#tFill').style.width = (t.done ? 100 : 100 * (1 - left / t.total)).toFixed(1) + '%';
 }
 function unlockAudio() { try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {} }
@@ -932,6 +933,7 @@ function adjust(kind, key, dir) {
   else if (kind === 'bar') st.bar = clamp(fix(st.bar + dir * 2.5), 5, 30);
   else if (kind === 'restOk') st.restOk = clamp(st.restOk + dir * 15, 30, 600);
   else if (kind === 'restFail') st.restFail = clamp(st.restFail + dir * 15, 30, 900);
+  else if (kind === 'restWarm') st.restWarm = clamp(st.restWarm + dir * 15, 15, 300);
   else if (kind === 'deloadAfter') st.deloadAfter = clamp(st.deloadAfter + dir, 1, 6);
   else if (kind === 'deloadPct') st.deloadPct = clamp(st.deloadPct + dir * 5, 5, 30);
   save(); render();
@@ -958,7 +960,7 @@ document.addEventListener('click', e => {
     case 'switch': ui.choose = (ui.choose || nextWorkout()) === 'A' ? 'B' : 'A'; render(); break;
     case 'start': S.active = newDraft(ui.choose || nextWorkout(), 'live'); ui.choose = null; S.setupDone = true; save(); render(); window.scrollTo(0, 0); updateWakeLock(); break;
     case 'general': if (d) { d.general = !d.general; persist(d); render(); } break;
-    case 'warm': if (d) { const l = d.lifts[i], k = +b.dataset.k; l.warm[k] = !l.warm[k]; persist(d); render(); } break;
+    case 'warm': if (d) { const l = d.lifts[i], k = +b.dataset.k; l.warm[k] = !l.warm[k]; if (d.mode === 'live') { if (l.warm[k]) startTimer(true, true); else if (ui.timer && ui.timer.warm) setTimer(null); } persist(d); render(); } break;
     case 'set': if (d) tapSet(i, +b.dataset.j); break;
     case 'reset-sets': if (d) { const l = d.lifts[i]; l.sets = l.sets.map(() => null); if (d.mode === 'live') setTimer(null); persist(d); render(); toast(`${LIFTS[l.lift].name}: arbetsseten är nollställda`); } break;
     case 'w': if (d) { const l = d.lifts[i]; l.weight = Math.max(0, fix(l.weight + (+b.dataset.dir) * stepW())); persist(d); render(); } break;
